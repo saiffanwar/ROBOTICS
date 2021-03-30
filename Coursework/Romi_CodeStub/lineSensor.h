@@ -32,7 +32,7 @@ class lineSensor_c {
       // constructor to do an analogRead.
       int no_of_samples = 0;
       float mean = 0;
-      while (no_of_samples < 100) {
+      while (no_of_samples < 1000) {
         no_of_samples +=1;
         value = analogRead( pin );
         mean = ((mean*(no_of_samples-1)) + value)/no_of_samples;
