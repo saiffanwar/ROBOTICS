@@ -7,6 +7,8 @@
 #include "lineSensor.h"
 #include "kinematics.h"
 #include "proxSensor.h"
+#include <EEPROM.h>
+
 
 #define l_PWM 10
 #define r_PWM  9
@@ -52,6 +54,9 @@ float dist;
 
 float tick_dist = 140;
 
+int iter_count = 0;
+int addr = 0;
+
 // time stamps
 unsigned long left_time_stamp;
 unsigned long right_time_stamp;
@@ -91,6 +96,9 @@ void setup() {
   Serial.println("***RESET***");
 
 
+  // for (int i = 0 ; i < EEPROM.length() ; i++) {
+  //   EEPROM.write(i, 0);
+  // }
   left_power = 0;
   right_power = 0;
  
@@ -141,7 +149,20 @@ void loop() {
   Serial.print(',');
   Serial.print(kinematics.x);
   Serial.println();
-
+  if (2*(iter_count) <= (EEPROM.length()-1)) {
+    Serial.print((EEPROM.length()-1));
+    Serial.println();
+    EEPROM.write(2*(iter_count), kinematics.x);
+    EEPROM.write(2*(iter_count)+1, kinematics.y);
+    // addr = addr + 2;
+  }
+  else if (2*(iter_count) >= EEPROM.length()) {
+      Serial.println("EEPROM Memory Full");
+      digitalWrite(LED_BUILTIN, HIGH);
+      delay(500);
+      digitalWrite(LED_BUILTIN, LOW);
+      delay(500);
+    }
  
   // apply updated power values
   left_motor.set_power((int)(left_power));
@@ -149,7 +170,15 @@ void loop() {
 
   // update kinemtaics
   kinematics.update(count_e0, count_e1);
+  // Serial.print(count_e0);
+  // Serial.print(',');
+  // Serial.print(count_e1);
+  // Serial.println();
 
+
+  iter_count=iter_count+1;
+  Serial.print(iter_count);
+  Serial.println();
   delay( 5 );
 } 
 

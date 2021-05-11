@@ -1,65 +1,68 @@
-/*
- * EEPROM Write
- *
- * Stores values read from analog input 0 into the EEPROM.
- * These values will stay in the EEPROM when the board is
- * turned off and may be retrieved later by another sketch.
- */
+/** 
+There are two modes to this file which can be defined in the setup.
+for mode "write":
+This file stores the values of the proximity sensor into the EEPROM Memory of the Arduino. 
+It can store upto 1kB and once it is full it will flash the builtin LED on the ROMI and print that the memory is full. 
+for mode "read"
+This file will display all the values stored in the EEPROM along with the location in memory.
+**/
 
 #include <EEPROM.h>
 #include <Wire.h>
 #include <VL6180X.h>
 VL6180X sensor;
 
-/** the current address in the EEPROM (i.e. which byte we're going to write to next) **/
 int addr = 0;
+byte val;
+String mode;
+int printed;
 
 void setup() {
-  /** Empty setup. **/
     Serial.begin(9600);
     Wire.begin();
+    sensor.init();
+    sensor.configureDefault();
+    sensor.setTimeout(500);
+    printed = 0;
+    mode = "read";
 }
 
 void loop() {
-  /***
-    Need to divide by 4 because analog inputs range from
-    0 to 1023 and each byte of the EEPROM can only hold a
-    value from 0 to 255.
-  ***/
 
-  int val = analogRead(0) / 4;
+    // Serial.print(mode);
+    // Serial.println(printed);
+  if (mode == "write"){
+    if (addr <= (EEPROM.length()-1)) {
+      int val = sensor.readRangeSingleMillimeters();
+      EEPROM.write(addr, val);
+      Serial.print(addr);
+      Serial.print("\t");
+      Serial.print(val, DEC);
+      Serial.println();
 
-  /***
-    Write the value to the appropriate byte of the EEPROM.
-    these values will remain there when the board is
-    turned off.
-  ***/
+      addr = addr + 1;
+    }
 
-  EEPROM.write(addr, val);
-
-  /***
-    Advance to the next address, when at the end restart at the beginning.
-
-    Larger AVR processors have larger EEPROM sizes, E.g:
-    - Arduno Duemilanove: 512b EEPROM storage.
-    - Arduino Uno:        1kb EEPROM storage.
-    - Arduino Mega:       4kb EEPROM storage.
-
-    Rather than hard-coding the length, you should use the pre-provided length function.
-    This will make your code portable to all AVR processors.
-  ***/
-  addr = addr + 1;
-  if (addr == EEPROM.length()) {
-    addr = 0;
+    else if (addr == EEPROM.length()) {
+      Serial.println("EEPROM Memory Full");
+      digitalWrite(LED_BUILTIN, HIGH);
+      delay(500);
+      digitalWrite(LED_BUILTIN, LOW);
+      delay(500);
+    }
   }
+  else if ((mode == "read")){// && (printed == 0)){
 
-  /***
-    As the EEPROM sizes are powers of two, wrapping (preventing overflow) of an
-    EEPROM address is also doable by a bitwise and of the length - 1.
-
-    ++addr &= EEPROM.length() - 1;
-  ***/
-
+      for (int i = 0; i < EEPROM.length(); i++) {
+        val = EEPROM.read(i);
+        Serial.print(i);
+        Serial.print(": ");
+        Serial.print(val, DEC);
+        Serial.print("\n");
+        delay(100);
+      }
+      // printed = 1;
+  }
 
   delay(100);
 }
