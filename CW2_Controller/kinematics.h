@@ -8,13 +8,21 @@ class kinematics_c {
     float theta; //
     float x; // describe global position
     float y; //
-    float l = 142; // distance between wheels (encoder counts)
 
+    // these values unique for each romi
+    float l = 142; // distance between wheels (encoder counts)
+    //float l = 134; // corrected wheel base 
+
+    float const_l = 1; // 1.011467; // wheel diameter correction values
+    float const_r = 1; // 0.988533; // 
+    float E_s = 1; // / 1.2; // scaling error
+    
     int last_left; // previous encoder counts
     int last_right;
     unsigned long time_stamp;
 
     float constant = 0.152716309549; // convert encoder count to mm (mm / encoder unit)
+    //float constant = 0.18325957;
     
     // Function Prototypes
     kinematics_c();   // constructor 
@@ -43,8 +51,12 @@ void kinematics_c::update(int left, int right) {
   float delta_t = (float)(millis() - time_stamp); // delta t in milliseconds
 
   // encoder counts to wheel velocities (counts/milli sec)
-  float V_l = (float)(left - last_left) / delta_t;
-  float V_r = (float)(right - last_right) / delta_t;
+//  float V_l = (float)(left - last_left) / delta_t;
+//  float V_r = (float)(right - last_right) / delta_t;
+  
+  // corrected
+  float V_l = const_l*(float)(left - last_left) / delta_t;
+  float V_r = const_r*(float)(right - last_right) / delta_t;
 
 
   last_left = left;
@@ -72,8 +84,8 @@ void kinematics_c::update(int left, int right) {
   float ICC_y = y + R*cos(theta);
   
   // update pose
-  x = ICC_x + (x - ICC_x)*cos(omega*delta_t) - (y - ICC_y)*sin(omega*delta_t);
-  y = ICC_y + (x - ICC_x)*sin(omega*delta_t) + (y - ICC_y)*cos(omega*delta_t);
+  x = ICC_x + E_s*(x - ICC_x)*cos(omega*delta_t) - (y - ICC_y)*sin(omega*delta_t);
+  y = ICC_y + E_s*(x - ICC_x)*sin(omega*delta_t) + (y - ICC_y)*cos(omega*delta_t);
   theta = theta + omega*delta_t;
 
 }

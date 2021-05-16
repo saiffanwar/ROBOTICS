@@ -21,11 +21,11 @@
 #define center_pin A2
 #define right_pin A4
 
-float target_dist = 40; // mm
+float target_dist = 100; // mm
 
  // (P, Int, Deriv)
-PID_motor left_controller(80,0,0);
-PID_motor right_controller(80,0,0);
+PID_motor left_controller(80,0,10);
+PID_motor right_controller(80,0,10);
 
 PID_heading heading_controller(0,0,0);
 
@@ -42,6 +42,9 @@ float right_speed;
 float max_speed = 0.15;
 float max_power = 30;
 
+float p_x = 50; // proximity sensor location relative to robot center
+float p_y = 75; //
+
 float heading = 0;
 
 float left_demand = 0;
@@ -51,6 +54,7 @@ float left_power;
 float right_power;
 float output;
 float dist;
+float sample_period = 1000; // how many milliseconds between memory writing
 
 float tick_dist = 140;
 
@@ -60,7 +64,7 @@ int addr = 0;
 // time stamps
 unsigned long left_time_stamp;
 unsigned long right_time_stamp;
-unsigned long off_line_time_stamp;
+unsigned long time_stamp;
 
 // Volatile Global variables used by Encoder ISR.
 volatile long count_e1; // used by encoder to count the rotation
@@ -95,12 +99,11 @@ void setup() {
   // Print a debug, so we can see a reset on monitor.
   Serial.println("***RESET***");
 
-
-  // for (int i = 0 ; i < EEPROM.length() ; i++) {
-  //   EEPROM.write(i, 0);
-  // }
+  
   left_power = 0;
   right_power = 0;
+
+  time_stamp = millis();
  
 } 
 
@@ -115,27 +118,6 @@ void loop() {
   // apply heading to motor demands
   track_heading(heading);
 
-//  if (kinematics.x < 500) {
-//    left_demand = 0.1;
-//    right_demand = 0.1;
-//  }
-//  else {
-//    left_demand = 0;
-//    right_demand = 0;
-//  }
-
-  // receive data from monitor
-  if ( Serial.available() ) {
-
-      char inChar = Serial.read(); // This reads one byte
-
-      if (inChar =='w') {
-          left_demand = left_demand + 0.01;
-      }
-      else if (inChar =='s') {
-          left_demand = left_demand - 0.01;
-      }     
-  }
 
   if (sensor.timeoutOccurred()) { Serial.print(" TIMEOUT"); }
 
@@ -145,24 +127,55 @@ void loop() {
 
 //  Serial.print(left_power);
 //  Serial.print(',');
-  Serial.print(kinematics.y);
-  Serial.print(',');
-  Serial.print(kinematics.x);
-  Serial.println();
-  if (2*(iter_count) <= (EEPROM.length()-1)) {
-    Serial.print((EEPROM.length()-1));
-    Serial.println();
-    EEPROM.write(2*(iter_count), kinematics.x);
-    EEPROM.write(2*(iter_count)+1, kinematics.y);
-    // addr = addr + 2;
-  }
-  else if (2*(iter_count) >= EEPROM.length()) {
-      Serial.println("EEPROM Memory Full");
-      digitalWrite(LED_BUILTIN, HIGH);
-      delay(500);
-      digitalWrite(LED_BUILTIN, LOW);
-      delay(500);
+//  Serial.print(kinematics.y);
+//  Serial.print(',');
+//  Serial.print(kinematics.x);
+
+  // write kinematics to memory
+  if (millis() - time_stamp > sample_period) {
+
+    if (5*(iter_count) <= (EEPROM.length()-4)) {
+      Serial.println();
+
+      // linear transform to proximity sensor location
+      float x_offset = cos(kinematics.theta)*p_x - sin(kinematics.theta)*p_y;
+      float y_offset = sin(kinematics.theta)*p_x + cos(kinematics.theta)*p_y;
+
+      // cast to short int
+      short int x_loc = (int)(kinematics.x + x_offset);
+      short int y_loc = (int)(kinematics.y + y_offset);
+  
+      // convert short int to two unsigned char
+      unsigned char x_byte_1 = (x_loc & 255);          // 
+      unsigned char x_byte_2 = ((x_loc >> 8) & 255);   // Ou: ((num >> 8) & 0xFF);
+  
+      unsigned char y_byte_1 = (y_loc & 255);          // Ou: (num & 0xFF)
+      unsigned char y_byte_2 = ((y_loc >> 8) & 255);   // Ou: ((num >> 8) & 0xFF);
+  
+      // store x_loc
+      EEPROM.write(5*(iter_count), x_byte_1);
+      EEPROM.write(5*(iter_count)+1, x_byte_2);
+  
+      // store y_loc
+      EEPROM.write(5*(iter_count)+2, y_byte_1);
+      EEPROM.write(5*(iter_count)+3, y_byte_2);
+      
+      // store sensor reading
+      EEPROM.write(5*(iter_count)+4, int(dist));
+      // addr = addr + 2;
+
+      iter_count=iter_count+1;
+
+    time_stamp = millis();
     }
+    else if (5*(iter_count) >= EEPROM.length()) {
+        Serial.println("EEPROM Memory Full");
+        digitalWrite(LED_BUILTIN, HIGH);
+        delay(500);
+        digitalWrite(LED_BUILTIN, LOW);
+        delay(500);
+      }
+  }
  
   // apply updated power values
   left_motor.set_power((int)(left_power));
@@ -175,9 +188,6 @@ void loop() {
   // Serial.print(count_e1);
   // Serial.println();
 
-
-  iter_count=iter_count+1;
-  Serial.print(iter_count);
   Serial.println();
   delay( 5 );
 } 
@@ -187,8 +197,8 @@ void loop() {
 void track_heading(float heading) {
  
   // steer 
-  left_demand = max_speed*heading + 0.5*max_speed;
-  right_demand = -max_speed*heading + 0.5*max_speed;
+  left_demand = max_speed*heading + 0.4*max_speed;
+  right_demand = -max_speed*heading + 0.4*max_speed;
 }
 
 
