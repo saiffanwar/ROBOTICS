@@ -54,7 +54,7 @@ float left_power;
 float right_power;
 float output;
 float dist;
-float sample_period = 1000; // how many milliseconds between memory writing
+float sample_period = 500; // how many milliseconds before memory writing begins
 
 float tick_dist = 140;
 
@@ -125,11 +125,6 @@ void loop() {
   left_power = left_controller.update(left_demand, left_speed);
   right_power = right_controller.update(right_demand, right_speed);
 
-//  Serial.print(left_power);
-//  Serial.print(',');
-//  Serial.print(kinematics.y);
-//  Serial.print(',');
-//  Serial.print(kinematics.x);
 
   // write kinematics to memory
   if (millis() - time_stamp > sample_period) {
@@ -162,11 +157,11 @@ void loop() {
       
       // store sensor reading
       EEPROM.write(5*(iter_count)+4, int(dist));
-      // addr = addr + 2;
 
-      iter_count=iter_count+1;
+      iter_count = iter_count + 1;
 
-    time_stamp = millis();
+      time_stamp = millis();
+      
     }
     else if (5*(iter_count) >= EEPROM.length()) {
         Serial.println("EEPROM Memory Full");
@@ -174,6 +169,9 @@ void loop() {
         delay(500);
         digitalWrite(LED_BUILTIN, LOW);
         delay(500);
+
+        max_speed = 0; // stop
+        
       }
   }
  
@@ -183,10 +181,6 @@ void loop() {
 
   // update kinemtaics
   kinematics.update(count_e0, count_e1);
-  // Serial.print(count_e0);
-  // Serial.print(',');
-  // Serial.print(count_e1);
-  // Serial.println();
 
   Serial.println();
   delay( 5 );

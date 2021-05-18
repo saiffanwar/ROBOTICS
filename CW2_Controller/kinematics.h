@@ -10,11 +10,11 @@ class kinematics_c {
     float y; //
 
     // these values unique for each romi
-    float l = 142; // distance between wheels (encoder counts)
-    //float l = 134; // corrected wheel base 
+    //float l = 142; // distance between wheels (encoder counts)
+    float l = 134.23; // corrected wheel base 
 
-    float const_l = 1; // 1.011467; // wheel diameter correction values
-    float const_r = 1; // 0.988533; // 
+    float const_l = 1.011467; // wheel diameter correction values
+    float const_r = 0.988533; // 
     float E_s = 1; // / 1.2; // scaling error
     
     int last_left; // previous encoder counts
